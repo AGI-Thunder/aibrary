@@ -46,3 +46,10 @@ response = aibrary.audio.speech.create(
     input="Hey Cena", model="tts-1", response_format="mp3", voice="alloy"
 )
 open("file.mp3", "wb").write(response.content)
+
+# %%
+from aibrary.resources.aibrary_wrapper import AiBrary
+
+aibrary = AiBrary()
+response = aibrary.images.generate(model="dall-e-2", size="256x256", prompt="Draw cat")
+response
