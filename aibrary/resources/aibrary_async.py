@@ -27,7 +27,9 @@ class AsyncAiBrary(openai.AsyncOpenAI):
         super().__init__(api_key=self.api_key, base_url=self.base_url)
 
         """Initialize all modules."""
-        self.translation = TranslationClient(api_key=api_key, base_url=self.base_url).automatic_translation_async
+        self.translation = TranslationClient(
+            api_key=api_key, base_url=self.base_url
+        ).automatic_translation_async
         self.chat.completions = AibraryChatCompletion(self)
 
     async def get_all_models(
@@ -56,7 +58,12 @@ class AsyncAiBrary(openai.AsyncOpenAI):
             )
         response.raise_for_status()
         data = response.json()["models"]
-
+        if filter_category:
+            data = [
+                item
+                for item in data
+                if item.get("category").lower() == filter_category.lower()
+            ]
         if return_as_objects:
             return [Model.from_json(item) for item in data]
         return data

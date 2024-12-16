@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from aibrary import AsyncAiBrary
+from aibrary.resources.models import Model
 
 
 @pytest.fixture
@@ -18,7 +19,8 @@ def event_loop():
 
 @pytest.mark.asyncio
 async def test_chat_completions(aibrary: AsyncAiBrary):
-    models = await aibrary.get_all_models(filter_category="Chat")
+    models = await aibrary.get_all_models(filter_category="chat")
+    assert len(models) > 0, "There is no model!!!"
     tasks = [
         aibrary.chat.completions.create(
             model=model.model_name,
@@ -63,29 +65,82 @@ async def test_chat_completions_with_system(aibrary: AsyncAiBrary):
 
 @pytest.mark.asyncio
 async def test_audio_transcriptions(aibrary: AsyncAiBrary):
-    with open("var/file.mp3", "rb") as audio_file:
-        response = await aibrary.audio.transcriptions.create(
-            model="whisper-large-v3", file=audio_file
-        )
-    assert response, "Response should not be empty"
+    async def _inner_fun(model: Model):
+        with open("var/file.mp3", "rb") as audio_file:
+            return await aibrary.audio.transcriptions.create(
+                model=model.model_name, file=audio_file
+            )
+
+    models = await aibrary.get_all_models(filter_category="stt")
+    assert len(models) == 3, "There is no model!!!"
+    tasks = [_inner_fun(model) for model in models]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for response in results:
+        if isinstance(response, Exception):
+            print(f"An error occurred: {response}")
+            continue
+        assert response, "Response should not be empty"
 
 
 @pytest.mark.asyncio
 async def test_automatic_translation(aibrary: AsyncAiBrary):
-    response = await aibrary.translation(
-        text="HI", model="phedone", source_language="en", target_language="fa"
-    )
-    assert response["text"], "Response should not be empty"
+    async def _inner_fun(model: Model):
+        return await aibrary.translation(
+            text="HI",
+            model=model.model_name,
+            source_language="en",
+            target_language="fa",
+        )
+
+    models = await aibrary.get_all_models(filter_category="translation")
+    assert len(models) > 0, "There is no model!!!"
+    tasks = [_inner_fun(model) for model in models]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for response in results:
+        if isinstance(response, Exception):
+            print(f"An error occurred: {response}")
+            continue
+        assert response["text"], "Response should not be empty"
 
 
 @pytest.mark.asyncio
 async def test_audio_speech_creation(aibrary: AsyncAiBrary):
-    response = await aibrary.audio.speech.create(
-        input="Hey Cena", model="tts-1", response_format="mp3", voice="alloy"
-    )
-    with open("file.mp3", "wb") as output_file:
-        output_file.write(response.content)
-    assert response.content, "Audio content should not be empty"
+    async def _inner_fun(model: Model):
+        try:
+            return (
+                await aibrary.audio.speech.create(
+                    input="Hey Cena",
+                    model=model.model_name,
+                    response_format="mp3",
+                    voice="alloy",
+                )
+            ), model
+        except Exception as e:
+            return (e, model)
+
+    models = await aibrary.get_all_models(filter_category="tts")
+    assert len(models) > 0, "There is no model!!!"
+    tasks = [_inner_fun(model) for model in models]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    error = []
+    for response_model in results:
+        response, model = response_model
+        if isinstance(response, Exception):
+            error.append(f"An error occurred: {model} - {response}")
+            continue
+        if response:
+            assert response.content, "Audio content should not be empty"
+            with open(f"file-{model.model_name}.mp3", "wb") as output_file:
+                output_file.write(response.content)
+        else:
+            error.append(f"No audio content generated for model: {model.model_name}")
+    if len(error):
+        raise AssertionError("\n".join(error))
 
 
 @pytest.mark.asyncio
