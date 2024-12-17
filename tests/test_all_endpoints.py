@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from aibrary.resources.aibrary import AiBrary
+from aibrary.resources.aibrary_sync import AiBrary
 
 
 @pytest.fixture
