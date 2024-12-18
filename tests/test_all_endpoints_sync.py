@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import pytest
 
@@ -188,3 +189,65 @@ def test_image_generation_with_multiple_models(aibrary: AiBrary):
 
     if len(error):
         raise AssertionError("\n".join(error))
+
+
+def test_ocr_with_multiple_modes(aibrary: AiBrary):
+    def _inner_fun(model: Model, mode: str, input_data: str):
+        asyncio.run(asyncio.sleep(1))
+        try:
+            if mode == "file":
+                response = aibrary.ocr(
+                    providers=model.model_name,
+                    language="en",
+                    file=input_data,
+                )
+            elif mode == "url":
+                response = aibrary.ocr(
+                    providers=model.model_name,
+                    language="en",
+                    file_url=input_data,
+                )
+            else:
+                raise ValueError(f"Invalid mode: {mode}")
+
+            return response, mode, input_data
+        except Exception as e:
+            return e, mode, input_data
+
+    # Test data
+    file_path = "tests/assets/ocr-test.jpg"  # Replace with an actual test file path
+    file_url = "https://builtin.com/sites/www.builtin.com/files/styles/ckeditor_optimize/public/inline-images/5_python-ocr.jpg"  # Replace with an actual test URL
+
+    # Ensure test inputs are valid
+    assert os.path.isfile(file_path), f"Test file does not exist: {file_path}"
+
+    # Test modes
+    inputs = [
+        ("file", file_path),
+        # ("url", file_url),
+    ]
+    models = aibrary.get_all_models(filter_category="ocr")
+
+    assert len(models) > 0, "There is no model!!!"
+    for mode, input_data in inputs:
+        tasks = [_inner_fun(model, mode, input_data) for model in models]
+    errors = []
+
+    for response_data in tasks:
+        response, mode, input_data = response_data
+        if isinstance(response, Exception):
+            errors.append(
+                f"An error occurred in mode '{mode}' with input '{input_data}': {response}"
+            )
+            continue
+        if response:
+            assert (
+                response
+            ), f"OCR content should not be empty for mode '{mode}' and input '{input_data}'"
+        else:
+            errors.append(
+                f"No OCR content generated for mode '{mode}', input: {input_data}, response: {response}"
+            )
+
+    if len(errors):
+        raise AssertionError("\n".join(errors))

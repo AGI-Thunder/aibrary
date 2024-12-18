@@ -64,7 +64,15 @@ aibrary.images.generate(model="dall-e-2", size="256x256", prompt="Draw cat")
 ```python
 aibrary.translation.automatic_translation("HI", "phedone", "en", "fa")
 ```
+### OCR
+```python
+aibrary.ocr(providers='amazon',file=open('tests/assets/ocr-test.jpg','rb').read(),file_name="test.jpg")
+# OR only send path
+aibrary.ocr(providers='amazon',file='tests/assets/ocr-test.jpg')
+# OR send url
+aibrary.ocr(providers='amazon',file_url="https://builtin.com/sites/www.builtin.com/files/styles/ckeditor_optimize/public/inline-images/5_python-ocr.jpg")
 
+```
 ## Async Client
 For async version of client you can import `from aibrary import AsyncAiBrary` and only put await behind above exmpale like this example:
 
