@@ -12,7 +12,12 @@ from aibrary.resources.translation import TranslationClient
 class AiBrary(openai.OpenAI):
     """Base class for OpenAI modules."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(
+        self,
+        *,
+        api_key: str = None,
+        **kwargs,
+    ):
         """Initialize with API key and base URL."""
         if api_key is None:
             api_key = os.environ.get("AIBRARY_API_KEY")
@@ -24,7 +29,7 @@ class AiBrary(openai.OpenAI):
         self.base_url = f"https://api.aibrary.dev/v0"
         openai.api_key = api_key
         openai.base_url = self.base_url
-        super().__init__(api_key=self.api_key, base_url=self.base_url)
+        super().__init__(api_key=self.api_key, base_url=self.base_url, **kwargs)
 
         """Initialize all modules."""
         self.translation = TranslationClient(

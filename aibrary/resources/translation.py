@@ -46,7 +46,9 @@ class TranslationClient:
         # Return the JSON response
         return response.json()
 
-    def automatic_translation(self, text, model, source_language, target_language):
+    def automatic_translation(
+        self, text, model, source_language, target_language
+    ) -> httpx.Response:
         """
         Perform automatic translation.
 

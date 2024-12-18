@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class Model:
     def __init__(
         self,
@@ -9,6 +12,8 @@ class Model:
         pricing_input_unit_type: str,
         pricing_output_unit_type: str,
         status: str,
+        size: Optional[str],
+        quality: Optional[str],
     ):
         self.provider = provider
         self.category = category
@@ -18,6 +23,8 @@ class Model:
         self.pricing_input_unit_type = pricing_input_unit_type
         self.pricing_output_unit_type = pricing_output_unit_type
         self.status = status
+        self.size = size
+        self.quality = quality
 
     @classmethod
     def from_json(cls, data: dict):
@@ -33,6 +40,8 @@ class Model:
             pricing_input_unit_type=data.get("pricing_input_unit_type", "Unknown"),
             pricing_output_unit_type=data.get("pricing_output_unit_type", "Unknown"),
             status=data.get("status", "Unknown"),
+            size=data.get("size", "Unknown"),
+            quality=data.get("quality", "Unknown"),
         )
 
     def __repr__(self):
@@ -40,5 +49,5 @@ class Model:
             f"Model(provider={self.provider}, category={self.category}, model_name={self.model_name}, "
             f"price_per_input_unit={self.price_per_input_unit}, price_per_output_unit={self.price_per_output_unit}, "
             f"pricing_input_unit_type={self.pricing_input_unit_type}, pricing_output_unit_type={self.pricing_output_unit_type}, "
-            f"status={self.status})"
+            f"status={self.status}), size={self.size}), quality={self.quality})"
         )

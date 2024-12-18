@@ -1,11 +1,9 @@
-name: Tests
+name: AiBrary Client Package Test
 
 on: [pull_request]
 
 env:
   AIBRARY_API_KEY: ${{ secrets.AIBRARY_API_KEY }}
-
-name: AiBrary Client Package
 
 jobs:
   test:
@@ -20,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"  # Specify the Python version
+          python-version: "3.12" # Specify the Python version
 
       # Install dependencies
       - name: Install dependencies
