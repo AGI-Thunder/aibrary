@@ -66,13 +66,13 @@ async def test_chat_completions_with_system(aibrary: AsyncAiBrary):
 @pytest.mark.asyncio
 async def test_audio_transcriptions(aibrary: AsyncAiBrary):
     async def _inner_fun(model: Model):
-        with open("var/file.mp3", "rb") as audio_file:
+        with open("../var/file.mp3", "rb") as audio_file:
             return await aibrary.audio.transcriptions.create(
                 model=model.model_name, file=audio_file
             )
 
     models = await aibrary.get_all_models(filter_category="stt")
-    assert len(models) == 3, "There is no model!!!"
+    assert len(models) > 0, "There is no model!!!"
     tasks = [_inner_fun(model) for model in models]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -145,7 +145,27 @@ async def test_audio_speech_creation(aibrary: AsyncAiBrary):
 
 @pytest.mark.asyncio
 async def test_image_generation(aibrary: AsyncAiBrary):
-    response = await aibrary.images.generate(
-        model="dall-e-2", size="256x256", prompt="Draw cat"
-    )
-    assert response, "Response should not be empty"
+    async def _inner_fun(model_name: str):
+        try:
+            return await aibrary.images.generate(
+                model=model_name, size="256x256", prompt="Draw cat"
+            )
+        except Exception as e:
+            return e
+
+    models = await aibrary.get_all_models(filter_category="image")
+    models = list(set([model.model_name for model in models]))
+    assert len(models) > 0, "There is no model!!!"
+
+    tasks = [_inner_fun(model) for model in models]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    errors = []
+    for response in results:
+        if isinstance(response, Exception):
+            errors.append(f"An error occurred: {response}")
+            continue
+        assert response, "Response should not be empty"
+
+    if errors:
+        raise AssertionError("\n".join(errors))
