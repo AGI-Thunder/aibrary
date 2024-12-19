@@ -46,13 +46,13 @@ def test_chat_completions_with_system(aibrary: AiBrary):
     response = aibrary.chat.completions.create(
         model="claude-3-5-haiku-20241022",
         messages=[
-            {"role": "user", "content": "How are you today?"},
-            {"role": "assistant", "content": "what is computer"},
+            {"role": "user", "content": "you are math teacher"},
+            {"role": "assistant", "content": "what is subtraction?"},
         ],
         temperature=0.7,
-        system="you are a teacher of cmputer",
+        system="you are math teacher",
     )
-    assert response, "Response should not be empty"
+    assert response.choices[0].message.content, "Response should not be empty"
 
 
 def test_audio_transcriptions(aibrary: AiBrary):

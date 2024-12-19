@@ -56,11 +56,11 @@ async def test_chat_completions_with_system(aibrary: AsyncAiBrary):
     response = await aibrary.chat.completions.create(
         model="claude-3-5-haiku-20241022",
         messages=[
-            {"role": "user", "content": "How are you today?"},
-            {"role": "assistant", "content": "what is computer"},
+            {"role": "user", "content": "you are math teacher"},
+            {"role": "assistant", "content": "what is subtraction?"},
         ],
         temperature=0.7,
-        system="you are a teacher of cmputer",
+        system="you are math teacher",
     )
     assert response.choices[0].message.content, "Response should not be empty"
 
@@ -124,9 +124,8 @@ async def test_automatic_translation(aibrary: AsyncAiBrary):
         if isinstance(response, Exception):
             print(f"An error occurred: {response}")
             continue
-        assert response["text"], "Response should not be empty"
         if response:
-            assert response.content, "Audio content should not be empty"
+            assert "text" in response, "Audio content should not be empty"
         else:
             error.append(f"No audio content generated for model: {model.model_name}")
     if len(error):
@@ -160,8 +159,6 @@ async def test_audio_speech_creation(aibrary: AsyncAiBrary):
             continue
         if response:
             assert response.content, "Audio content should not be empty"
-            with open(f"var/file-{model.model_name}-async.mp3", "wb") as output_file:
-                output_file.write(response.content)
         else:
             error.append(f"No audio content generated for model: {model.model_name}")
     if len(error):

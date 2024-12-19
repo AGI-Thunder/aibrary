@@ -40,8 +40,8 @@ class Model:
             pricing_input_unit_type=data.get("pricing_input_unit_type", "Unknown"),
             pricing_output_unit_type=data.get("pricing_output_unit_type", "Unknown"),
             status=data.get("status", "Unknown"),
-            size=data.get("size", "Unknown"),
-            quality=data.get("quality", "Unknown"),
+            size=data.get("size"),
+            quality=data.get("quality"),
         )
 
     def __repr__(self):
