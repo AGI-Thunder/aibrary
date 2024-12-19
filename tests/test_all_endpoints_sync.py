@@ -9,7 +9,7 @@ from tests.conftest import get_min_model_by_size
 
 @pytest.fixture
 def aibrary():
-    return AiBrary(api_key="cena")
+    return AiBrary()
 
 
 @pytest.fixture(scope="module")
