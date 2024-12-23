@@ -174,6 +174,7 @@ async def test_image_generation_with_multiple_models(aibrary: AsyncAiBrary):
                     model=model.model_name,
                     size=model.size,
                     prompt="Draw a futuristic cityscape",
+                    response_format="b64_json",
                 )
             ), model
         except Exception as e:
@@ -199,7 +200,7 @@ async def test_image_generation_with_multiple_models(aibrary: AsyncAiBrary):
             )
 
     if len(error):
-        raise AssertionError("\n".join(error))
+        raise AssertionError(f"{len(error)}/{len(models)}" + "\n".join(error))
 
 
 @pytest.mark.asyncio
