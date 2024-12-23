@@ -89,7 +89,6 @@ class OCRClient:
                     data=data,
                     headers=self.headers,
                 )
-        response.raise_for_status()
         return response.json()
 
     def process_ocr(
