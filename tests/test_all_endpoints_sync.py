@@ -21,7 +21,8 @@ def event_loop():
 
 # @pytest.mark.asyncio
 def test_chat_completions(aibrary: AiBrary):
-    models = aibrary.get_all_models(filter_category="Chat")
+    models = aibrary.get_all_models(filter_category="chat")
+    assert len(models) > 0, "There is no model!!!"
     tasks = [
         aibrary.chat.completions.create(
             model=model.model_name,
@@ -32,9 +33,19 @@ def test_chat_completions(aibrary: AiBrary):
         )
         for model in models
     ]
-    for response in tasks:
+    error = []
+    for response_model in zip(tasks, models):
+        response = response_model[0]
+        model: Model = response_model[1]
+        if isinstance(response, Exception):
+            message = f"No chat generated for Provider/Model:{model.provider}/{model.model_name} - {type(response)} - {response}"
+            error.append(message)
+            continue
         assert response, "Response should not be empty"
         assert response.choices[0].message.content, "Value not exist!"
+
+    if len(error):
+        raise AssertionError(f"Errors {len(error)}/{len(tasks)}" + "\n".join(error))
 
 
 def test_get_all_models(aibrary: AiBrary):

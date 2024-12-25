@@ -35,13 +35,19 @@ async def test_chat_completions(aibrary: AsyncAiBrary):
     ]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    for response in results:
+    error = []
+    for response_model in zip(results, models):
+        response = response_model[0]
+        model: Model = response_model[1]
         if isinstance(response, Exception):
-            print(f"An error occurred: {response}")
+            message = f"No chat generated for Provider/Model:{model.provider}/{model.model_name} - {type(response)} - {response}"
+            error.append(message)
             continue
         assert response, "Response should not be empty"
         assert response.choices[0].message.content, "Value not exist!"
+
+    if len(error):
+        raise AssertionError(f"Errors {len(error)}/{len(results)}" + "\n".join(error))
 
 
 @pytest.mark.asyncio
