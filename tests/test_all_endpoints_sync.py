@@ -262,3 +262,81 @@ def test_ocr_with_multiple_modes(aibrary: AiBrary):
 
     if len(errors):
         raise AssertionError("\n".join(errors))
+
+
+def generic_with_multiple_modes(
+    aibrary: AiBrary,
+    method: str,
+    filter_category: str,
+    include_language: bool = True,
+):
+    def _inner_fun(model: Model, mode: str, input_data: str):
+        asyncio.run(asyncio.sleep(1))
+        try:
+            kwargs = {
+                "providers": model.model_name,
+                "file": input_data if mode == "file" else None,
+                "file_url": input_data if mode == "url" else None,
+            }
+            if include_language:
+                kwargs["language"] = "en"
+
+            response = getattr(aibrary, method)(
+                **{k: v for k, v in kwargs.items() if v is not None}
+            )
+            return response, mode, input_data, model
+        except Exception as e:
+            return e, mode, input_data, model
+
+    # Test data
+    file_path = "tests/assets/test-image.jpg"  # Replace with an actual test file path
+    file_url = "https://builtin.com/sites/www.builtin.com/files/styles/ckeditor_optimize/public/inline-images/5_python-ocr.jpg"  # Replace with an actual test URL
+
+    # Ensure test inputs are valid
+    assert os.path.isfile(file_path), f"Test file does not exist: {file_path}"
+
+    # Test modes
+    inputs = [
+        ("file", file_path),
+        # ("url", file_url),
+    ]
+    models = aibrary.get_all_models(filter_category=filter_category)
+
+    assert len(models) > 0, f"There is no model for category '{filter_category}'!!!"
+    for mode, input_data in inputs:
+        tasks = [_inner_fun(model, mode, input_data) for model in models]
+    errors = []
+
+    for response_data in tasks:
+        response, mode, input_data, model = response_data
+        if isinstance(response, Exception):
+            errors.append(
+                f"An error occurred in mode '{mode}' with input '{input_data}': {response} model:{model}"
+            )
+            continue
+        if response:
+            assert (
+                response
+            ), f"Content should not be empty for mode '{mode}' and input '{input_data}'"
+        else:
+            errors.append(
+                f"No content generated for mode '{mode}', input: {input_data}, response: {response}"
+            )
+
+    if len(errors):
+        raise AssertionError("\n".join(errors))
+
+
+@pytest.mark.asyncio
+async def test_ocr_with_multiple_modes(aibrary: AiBrary):
+    await generic_with_multiple_modes(aibrary, method="ocr", filter_category="ocr")
+
+
+@pytest.mark.asyncio
+async def test_object_detection_with_multiple_modes(aibrary: AiBrary):
+    await generic_with_multiple_modes(
+        aibrary,
+        method="object_detection",
+        filter_category="object detection",
+        include_language=False,
+    )

@@ -6,6 +6,7 @@ import openai
 
 from aibrary.resources.chat import AibraryChatCompletionSync
 from aibrary.resources.models import Model
+from aibrary.resources.object_detection import ObjectDetectionClient
 from aibrary.resources.ocr import OCRClient
 from aibrary.resources.translation import TranslationClient
 
@@ -38,6 +39,9 @@ class AiBrary(openai.OpenAI):
         ).automatic_translation
         self.chat.completions.create = AibraryChatCompletionSync(self).create
         self.ocr = OCRClient(base_url=self.base_url, api_key=self.api_key).process_ocr
+        self.object_detection = ObjectDetectionClient(
+            base_url=self.base_url, api_key=self.api_key
+        ).process_object_detection
 
     def get_all_models(
         self, return_as_objects: bool = True, filter_category: Optional[str] = None
