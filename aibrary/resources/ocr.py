@@ -4,6 +4,8 @@ import os
 
 import httpx
 
+from aibrary.schemas.ocr import OCRResponse
+
 
 class OCRClient:
     """Client for interacting with the OCR API."""
@@ -30,7 +32,7 @@ class OCRClient:
         attributes_as_list: bool,
         show_base_64: bool,
         show_original_response: bool,
-    ):
+    ) -> OCRResponse:
         """Internal method to process OCR requests."""
         if not (file or file_url):
             raise ValueError("Either 'file' or 'file_url' must be provided.")
@@ -89,7 +91,7 @@ class OCRClient:
                     data=data,
                     headers=self.headers,
                 )
-        return response.json()
+        return OCRResponse(**response.json())
 
     def process_ocr(
         self,
@@ -103,7 +105,7 @@ class OCRClient:
         attributes_as_list: bool = False,
         show_base_64: bool = True,
         show_original_response: bool = False,
-    ):
+    ) -> OCRResponse:
         """Synchronous wrapper for the OCR API."""
         return asyncio.run(
             self._process_ocr_internal(
@@ -133,7 +135,7 @@ class OCRClient:
         attributes_as_list: bool = False,
         show_base_64: bool = True,
         show_original_response: bool = False,
-    ):
+    ) -> OCRResponse:
         """Asynchronous method for the OCR API."""
         return await self._process_ocr_internal(
             providers,

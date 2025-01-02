@@ -4,6 +4,8 @@ import os
 
 import httpx
 
+from aibrary.schemas.object_detection import ObjectDetectionResponse
+
 
 class ObjectDetectionClient:
     """Client for interacting with the Object Detection API."""
@@ -29,7 +31,7 @@ class ObjectDetectionClient:
         attributes_as_list: bool,
         show_base_64: bool,
         show_original_response: bool,
-    ):
+    ) -> ObjectDetectionResponse:
         """Internal method to process Object Detection requests."""
         if not (file or file_url):
             raise ValueError("Either 'file' or 'file_url' must be provided.")
@@ -87,7 +89,7 @@ class ObjectDetectionClient:
                     data=data,
                     headers=self.headers,
                 )
-        return response.json()
+        return ObjectDetectionResponse(**response.json())
 
     def process_object_detection(
         self,
@@ -100,7 +102,7 @@ class ObjectDetectionClient:
         attributes_as_list: bool = False,
         show_base_64: bool = True,
         show_original_response: bool = False,
-    ):
+    ) -> ObjectDetectionResponse:
         """Synchronous wrapper for the Object Detection API."""
         return asyncio.run(
             self._process_object_detection_internal(
@@ -128,7 +130,7 @@ class ObjectDetectionClient:
         attributes_as_list: bool = False,
         show_base_64: bool = True,
         show_original_response: bool = False,
-    ):
+    ) -> ObjectDetectionResponse:
         """Asynchronous method for the Object Detection API."""
         return await self._process_object_detection_internal(
             providers,
