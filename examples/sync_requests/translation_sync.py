@@ -1,4 +1,11 @@
+import asyncio
+
 from aibrary import AiBrary
 
-aibrary = AiBrary()
-aibrary.translation.automatic_translation("HI", "phedone", "en", "fa")
+
+def main():
+    aibrary = AiBrary()
+    return aibrary.translation("HI", "phedone", "en", "fa")
+
+
+asyncio.run(main())
