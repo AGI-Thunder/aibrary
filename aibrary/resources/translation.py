@@ -2,6 +2,9 @@
 
 
 import httpx
+import openai
+
+from aibrary.schemas.translation import TranslationsResponse
 
 
 class TranslationClient:
@@ -17,7 +20,7 @@ class TranslationClient:
 
     async def automatic_translation_async(
         self, text, model, source_language, target_language
-    ):
+    ) -> TranslationsResponse:
         """
         Perform automatic translation.
 
@@ -40,15 +43,12 @@ class TranslationClient:
                 headers=self.headers,
             )
 
-        # Raise an error if the response status is not successful
-        response.raise_for_status()
-
         # Return the JSON response
-        return response.json()
+        return TranslationsResponse(**response.json())
 
     def automatic_translation(
         self, text, model, source_language, target_language
-    ) -> httpx.Response:
+    ) -> TranslationsResponse:
         """
         Perform automatic translation.
 
@@ -70,9 +70,9 @@ class TranslationClient:
                 json=payload,
                 headers=self.headers,
             )
-
-        # Raise an error if the response status is not successful
-        response.raise_for_status()
-
+        if response.status_code != 200:
+            raise openai.APIStatusError(
+                response.json(), response=response, body=response.json()
+            )
         # Return the JSON response
-        return response.json()
+        return TranslationsResponse(**response.json())

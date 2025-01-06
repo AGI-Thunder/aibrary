@@ -78,5 +78,5 @@ class AsyncAiBrary(openai.AsyncOpenAI):
                 if item.get("category").lower() == filter_category.lower()
             ]
         if return_as_objects:
-            return [Model.from_json(item) for item in data]
+            return [Model(**item) for item in data]
         return data

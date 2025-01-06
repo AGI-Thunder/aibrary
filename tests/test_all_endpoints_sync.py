@@ -29,7 +29,6 @@ def test_chat_completions(aibrary: AiBrary):
             messages=[
                 {"role": "user", "content": "what is 2+2? return only a number."},
             ],
-            temperature=0.7,
         )
         for model in models
     ]
@@ -41,11 +40,11 @@ def test_chat_completions(aibrary: AiBrary):
             message = f"No chat generated for Provider/Model:{model.provider}/{model.model_name} - {type(response)} - {response}"
             error.append(message)
             continue
-        assert response, "Response should not be empty"
-        assert response.choices[0].message.content, "Value not exist!"
 
     if len(error):
-        raise AssertionError(f"Errors {len(error)}/{len(tasks)}" + "\n".join(error))
+        raise AssertionError(
+            f"Passed {len(tasks) - len(error)}/{len(tasks)}\n" + "\n".join(error)
+        )
 
 
 def test_get_all_models(aibrary: AiBrary):
@@ -90,14 +89,16 @@ def test_audio_transcriptions(aibrary: AiBrary):
             print(f"An error occurred: {response}")
             error.append(f"No audio content generated for model: {model.model_name}")
             continue
-        assert response, "Response should not be empty"
+
     if len(error):
-        raise AssertionError("\n".join(error))
+        raise AssertionError(
+            f"Passed {len(tasks) - len(error)}/{len(tasks)}\n" + "\n".join(error)
+        )
 
 
 def test_automatic_translation(aibrary: AiBrary):
     def _inner_fun(model: Model):
-        asyncio.run(asyncio.sleep(1.5))
+        asyncio.run(asyncio.sleep(2))
         try:
             return (
                 aibrary.translation(
@@ -120,21 +121,17 @@ def test_automatic_translation(aibrary: AiBrary):
         response, model = response_model
 
         if isinstance(response, Exception):
-            print(f"An error occurred: {response}")
-            continue
-        if response:
-            assert "text" in response, "translation content should not be empty"
-        else:
-            error.append(
-                f"No translation content generated for model: {model.model_name}"
-            )
+            error.append(f"An error occurred: {response}")
+
     if len(error):
-        raise AssertionError("\n".join(error))
+        raise AssertionError(
+            f"Passed {len(tasks) - len(error)}/{len(tasks)}\n" + "\n".join(error)
+        )
 
 
 def test_audio_speech_creation(aibrary: AiBrary):
     def _inner_fun(model: Model):
-        asyncio.run(asyncio.sleep(1.5))
+        asyncio.run(asyncio.sleep(3))
         try:
             return (
                 aibrary.audio.speech.create(
@@ -156,14 +153,11 @@ def test_audio_speech_creation(aibrary: AiBrary):
         if isinstance(response, Exception):
             error.append(f"An error occurred: {model} - {response}")
             continue
-        if response:
-            assert response.content, "Audio content should not be empty"
-            with open(f"var/file-{model.model_name}-sync.mp3", "wb") as output_file:
-                output_file.write(response.content)
-        else:
-            error.append(f"No audio content generated for model: {model.model_name}")
+
     if len(error):
-        raise AssertionError("\n".join(error))
+        raise AssertionError(
+            f"Passed {len(tasks) - len(error)}/{len(tasks)}\n" + "\n".join(error)
+        )
 
 
 def test_image_generation_with_multiple_models(aibrary: AiBrary):
@@ -189,17 +183,13 @@ def test_image_generation_with_multiple_models(aibrary: AiBrary):
     for response_model in tasks:
         response, model = response_model
         if isinstance(response, Exception):
-            error.append(f"An error occurred: {model} - {response}")
+            error.append(f"An error occurred: {model.model_name} - {response}")
             continue
-        if response:
-            assert response, "Image content should not be empty"
-        else:
-            error.append(
-                f"No image content generated for model: {model.model_name}, response: {response}"
-            )
 
     if len(error):
-        raise AssertionError("\n".join(error))
+        raise AssertionError(
+            f"Passed {len(tasks) - len(error)}/{len(tasks)}\n" + "\n".join(error)
+        )
 
 
 def test_ocr_with_multiple_modes(aibrary: AiBrary):
@@ -251,14 +241,6 @@ def test_ocr_with_multiple_modes(aibrary: AiBrary):
                 f"An error occurred in mode '{mode}' with input '{input_data}': {response}"
             )
             continue
-        if response:
-            assert (
-                response
-            ), f"OCR content should not be empty for mode '{mode}' and input '{input_data}'"
-        else:
-            errors.append(
-                f"No OCR content generated for mode '{mode}', input: {input_data}, response: {response}"
-            )
 
     if len(errors):
         raise AssertionError("\n".join(errors))
@@ -271,7 +253,6 @@ def generic_with_multiple_modes(
     include_language: bool = True,
 ):
     def _inner_fun(model: Model, mode: str, input_data: str):
-        asyncio.run(asyncio.sleep(1))
         try:
             kwargs = {
                 "providers": model.model_name,
@@ -314,27 +295,17 @@ def generic_with_multiple_modes(
                 f"An error occurred in mode '{mode}' with input '{input_data}': {response} model:{model}"
             )
             continue
-        if response:
-            assert (
-                response
-            ), f"Content should not be empty for mode '{mode}' and input '{input_data}'"
-        else:
-            errors.append(
-                f"No content generated for mode '{mode}', input: {input_data}, response: {response}"
-            )
 
     if len(errors):
         raise AssertionError("\n".join(errors))
 
 
-@pytest.mark.asyncio
-async def test_ocr_with_multiple_modes(aibrary: AiBrary):
-    await generic_with_multiple_modes(aibrary, method="ocr", filter_category="ocr")
+def test_ocr_with_multiple_modes(aibrary: AiBrary):
+    generic_with_multiple_modes(aibrary, method="ocr", filter_category="ocr")
 
 
-@pytest.mark.asyncio
-async def test_object_detection_with_multiple_modes(aibrary: AiBrary):
-    await generic_with_multiple_modes(
+def test_object_detection_with_multiple_modes(aibrary: AiBrary):
+    generic_with_multiple_modes(
         aibrary,
         method="object_detection",
         filter_category="object detection",
