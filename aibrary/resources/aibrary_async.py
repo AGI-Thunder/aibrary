@@ -6,6 +6,7 @@ import openai
 
 from aibrary.resources.chat import AibraryChatCompletionAsync
 from aibrary.resources.models import Model
+from aibrary.resources.object_detection import ObjectDetectionClient
 from aibrary.resources.ocr import OCRClient
 from aibrary.resources.translation import TranslationClient
 
@@ -40,6 +41,9 @@ class AsyncAiBrary(openai.AsyncOpenAI):
         self.ocr = OCRClient(
             base_url=self.base_url, api_key=self.api_key
         ).process_ocr_async
+        self.object_detection = ObjectDetectionClient(
+            base_url=self.base_url, api_key=self.api_key
+        ).process_object_detection_async
 
     async def get_all_models(
         self, return_as_objects: bool = True, filter_category: Optional[str] = None
@@ -74,5 +78,5 @@ class AsyncAiBrary(openai.AsyncOpenAI):
                 if item.get("category").lower() == filter_category.lower()
             ]
         if return_as_objects:
-            return [Model.from_json(item) for item in data]
+            return [Model(**item) for item in data]
         return data
