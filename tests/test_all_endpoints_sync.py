@@ -59,11 +59,10 @@ def test_chat_completions_with_system(aibrary: AiBrary):
     response = aibrary.chat.completions.create(
         model="claude-3-5-haiku-20241022",
         messages=[
-            {"role": "user", "content": "you are math teacher"},
-            {"role": "assistant", "content": "what is subtraction?"},
+            {"role": "system", "content": "you are math teacher"},
+            {"role": "user", "content": "what is subtraction?"},
         ],
         temperature=0.7,
-        system="you are math teacher",
     )
     assert response.choices[0].message.content, "Response should not be empty"
 

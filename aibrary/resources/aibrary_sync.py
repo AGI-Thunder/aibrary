@@ -4,7 +4,6 @@ from typing import List, Optional
 import httpx
 import openai
 
-from aibrary.resources.chat import AibraryChatCompletionSync
 from aibrary.resources.models import Model
 from aibrary.resources.object_detection import ObjectDetectionClient
 from aibrary.resources.ocr import OCRClient
@@ -37,7 +36,6 @@ class AiBrary(openai.OpenAI):
         self.translation = TranslationClient(
             api_key=api_key, base_url=self.base_url
         ).automatic_translation
-        self.chat.completions.create = AibraryChatCompletionSync(self).create
         self.ocr = OCRClient(base_url=self.base_url, api_key=self.api_key).process_ocr
         self.object_detection = ObjectDetectionClient(
             base_url=self.base_url, api_key=self.api_key
