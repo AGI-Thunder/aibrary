@@ -1,8 +1,165 @@
+import io
 from typing import Dict, List, Tuple
 
+from PIL import Image, ImageDraw
 from PyPDF2 import PdfReader
 
 from aibrary import AiBrary, Model
+
+
+def draw_box_ocr(image_bytes, ocr_response):
+    # Load the image from bytes
+    img = Image.open(io.BytesIO(image_bytes))
+    draw = ImageDraw.Draw(img)
+
+    # Get the image dimensions
+    img_width, img_height = img.size
+
+    # Draw rectangles around bounding boxes
+    for bbox in ocr_response.bounding_boxes:
+        # Scale bounding box coordinates if they are normalized
+        left = bbox.left * img_width  # Assuming normalized coordinates
+        top = bbox.top * img_height
+        right = (bbox.left + bbox.width) * img_width
+        bottom = (bbox.top + bbox.height) * img_height
+
+        # Ensure valid coordinates
+        if left < 0 or top < 0 or right > img_width or bottom > img_height:
+            continue
+
+        # Ensure y1 >= y0 and x1 >= x0
+        if top > bottom or left > right:
+            continue
+
+        # Draw rectangle and add text
+        draw.rectangle([left, top, right, bottom], outline="red", width=2)
+        draw.text(
+            (left, max(0, top - 10)), bbox.text, fill="red"
+        )  # Add text above the box
+
+    # Save to memory as bytes
+    output_bytes = io.BytesIO()
+    img.save(output_bytes, format="JPEG")
+    output_bytes.seek(0)
+    return output_bytes.getvalue()
+
+
+def encode_file(file: bytes):
+    import base64
+
+    return base64.b64encode(file).decode("utf-8")
+
+
+def decode_file(file: str) -> bytes:
+    import base64
+
+    return base64.b64decode(file)
+
+
+def prepare_image(file_type: str, file: bytes):
+
+    base64_file = encode_file(file)
+
+    return {
+        "role": "user",
+        "content": [
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{file_type};base64,{base64_file}"},
+            },
+        ],
+    }
+
+
+def prepare_audio(file_type: str, file: bytes):
+
+    base64_file = encode_file(file)
+
+    return {
+        "role": "user",
+        "content": [
+            {
+                "type": "input_audio",
+                "input_audio": {"data": base64_file, "format": file_type.split("/")[1]},
+            }
+        ],
+    }
+
+
+def draw_box_object_detection(image_bytes, detection_response):
+    # Load the image from bytes
+    img = Image.open(io.BytesIO(image_bytes))
+    draw = ImageDraw.Draw(img)
+
+    # Get the image dimensions
+    img_width, img_height = img.size
+
+    # Draw rectangles around bounding boxes
+    for item in detection_response.items:
+        # Check for None values and skip invalid items
+        if (
+            item.x_min is None
+            or item.y_min is None
+            or item.x_max is None
+            or item.y_max is None
+        ):
+            print(f"Skipping item with None values: {item}")
+            continue
+
+        try:
+            # Convert coordinates to float and scale if necessary
+            x_min = (
+                float(item.x_min) * img_width
+                if isinstance(item.x_min, (str, float))
+                else int(item.x_min)
+            )
+            y_min = (
+                float(item.y_min) * img_height
+                if isinstance(item.y_min, (str, float))
+                else int(item.y_min)
+            )
+            x_max = (
+                float(item.x_max) * img_width
+                if isinstance(item.x_max, (str, float))
+                else int(item.x_max)
+            )
+            y_max = (
+                float(item.y_max) * img_height
+                if isinstance(item.y_max, (str, float))
+                else int(item.y_max)
+            )
+        except ValueError:
+            print(f"Skipping item with invalid coordinates: {item}")
+            continue
+
+        # Debugging: Print the bounding box values
+        print(
+            f"Bounding box: x_min={x_min}, y_min={y_min}, x_max={x_max}, y_max={y_max}, label={item.label}"
+        )
+
+        # Ensure valid coordinates
+        if x_min < 0 or y_min < 0 or x_max > img_width or y_max > img_height:
+            print("Skipping invalid bounding box.")
+            continue
+
+        # Ensure x_max >= x_min and y_max >= y_min
+        if x_max < x_min or y_max < y_min:
+            print("Skipping inverted bounding box.")
+            continue
+
+        # Draw rectangle and add text
+        draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=2)
+        draw.text(
+            (x_min, max(0, y_min - 10)),
+            f"{item.label} ({item.confidence:.2f})",
+            fill="red",
+        )  # Add label and confidence
+
+    # Save to memory as bytes
+    output_bytes = io.BytesIO()
+    img.save(output_bytes, format="JPEG")
+    output_bytes.seek(0)
+    return output_bytes.getvalue()
 
 
 class SimpleRAGSystem:
@@ -246,12 +403,6 @@ def multimodal_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
     from PIL import Image
-    from utils.file_convertor import (
-        decode_file,
-        encode_file,
-        prepare_audio,
-        prepare_image,
-    )
 
     isAudio = "audio" in model.model_name
     st.session_state.setdefault("multimodal_data", [])
@@ -383,11 +534,8 @@ def multimodal_category(model: "Model", aibrary: "AiBrary"):
 def image_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
-    from utils.file_convertor import decode_file
+    from openai.types.images_response import ImagesResponse
 
-    from aibrary.types.images_response import ImagesResponse
-
-    st.title()
     st.session_state.setdefault("image_data", [])
     title_with_clearBtn("🖼️ Image Generation", ["image_data"])
     for message in st.session_state.image_data:
@@ -428,12 +576,11 @@ def image_category(model: "Model", aibrary: "AiBrary"):
 def ocr_category(model: "Model", aibrary: "AiBrary"):
     import streamlit as st
     from PIL import Image
-    from utils.draw_box_ocr import draw_box_ocr
-    from utils.file_convertor import decode_file, encode_file
 
     st.subheader("Optical Character Recognition")
     st.session_state.setdefault("ocr_data", [])
     title_with_clearBtn("🖼️ OCR", ["ocr_data"])
+    st.session_state.setdefault("ocr_file_uploader_key", 0)
 
     for message in st.session_state.ocr_data:
         with st.chat_message(message["role"]):
@@ -445,7 +592,9 @@ def ocr_category(model: "Model", aibrary: "AiBrary"):
                 st.code(message["content"], language="md", wrap_lines=True)
 
     uploaded_file = st.file_uploader(
-        "Upload an image or audio file", type=["jpg", "png", "jpeg"]
+        "Upload an image or audio file",
+        type=["jpg", "png", "jpeg"],
+        key=st.session_state.ocr_file_uploader_key,
     )
     if uploaded_file:
         if uploaded_file.type.startswith("image"):
@@ -498,17 +647,18 @@ def ocr_category(model: "Model", aibrary: "AiBrary"):
                             },
                         ]
                     )
+                    st.session_state.ocr_file_uploader_key += 1
+                    st.rerun()
 
 
 def object_detection_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
     from PIL import Image
-    from utils.draw_box_object_detection import draw_box_object_detection
-    from utils.file_convertor import decode_file, encode_file
 
     st.session_state.setdefault("object_detection_data", [])
     title_with_clearBtn("🖼️ Object Detection", ["object_detection_data"])
+    st.session_state.setdefault("object_detection_file_uploader_key", 0)
 
     for message in st.session_state.object_detection_data:
         with st.chat_message(message["role"]):
@@ -520,16 +670,19 @@ def object_detection_category(model: "Model", aibrary: "AiBrary"):
                 st.markdown(message["content"])
 
     uploaded_file = st.file_uploader(
-        "Upload an image or audio file", type=["jpg", "png", "jpeg"]
+        "Upload an image or audio file",
+        type=["jpg", "png", "jpeg"],
+        key=st.session_state.object_detection_file_uploader_key,
     )
     if uploaded_file:
         if uploaded_file.type.startswith("image"):
             image_file = uploaded_file.read()
             image = Image.open(uploaded_file)
-            st.image(
-                image,
-                caption="Uploaded Image",
-            )
+            with st.chat_message("user"):
+                st.image(
+                    image,
+                    caption="Uploaded Image",
+                )
             st.session_state.object_detection_data.append(
                 {"role": "user", "type": "image", "content": encode_file(image_file)}
             )
@@ -538,32 +691,36 @@ def object_detection_category(model: "Model", aibrary: "AiBrary"):
                 file=image_file,
                 file_name=uploaded_file.name,
             )
-            try:
-                response_file = draw_box_object_detection(image_file, response)
-                st.image(response_file)
-                st.session_state.object_detection_data.extend(
-                    {
-                        "role": "assistant",
-                        "type": "image",
-                        "content": encode_file(response_file),
-                    },
-                )
-            except:
-                pass
-            finally:
-                st.session_state.object_detection_data.extend(
-                    {
-                        "role": "assistant",
-                        "type": "json",
-                        "content": response.model_dump(),
-                    },
-                )
+            with st.chat_message("assistant"):
+
+                try:
+                    response_file = draw_box_object_detection(image_file, response)
+                    st.image(response_file)
+                    st.session_state.object_detection_data.append(
+                        {
+                            "role": "assistant",
+                            "type": "image",
+                            "content": encode_file(response_file),
+                        },
+                    )
+                except:
+                    pass
+                finally:
+                    st.session_state.object_detection_data.append(
+                        {
+                            "role": "assistant",
+                            "type": "json",
+                            "content": response.model_dump(),
+                        },
+                    )
+                    st.code(response.model_dump(), language="json", wrap_lines=True)
+                    st.session_state.object_detection_file_uploader_key += 1
+                    st.rerun()
 
 
 def stt_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
-    from utils.file_convertor import decode_file, encode_file
 
     st.session_state.setdefault("stt_data", [])
     title_with_clearBtn("🎤📝 Speech to Text", ["stt_data"])
@@ -614,7 +771,6 @@ def stt_category(model: "Model", aibrary: "AiBrary"):
 def tts_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
-    from utils.file_convertor import decode_file, encode_file
 
     st.session_state.setdefault("tts_data", [])
     title_with_clearBtn("📝🎤 Text to Speech", ["tts_data"])
@@ -638,7 +794,7 @@ def tts_category(model: "Model", aibrary: "AiBrary"):
                     input=prompt,
                     model=model.model_name,
                     response_format="mp3",
-                    voice="FEMALE" if model.provider != "aibrary" else "alloy",
+                    voice="FEMALE" if model.provider != "openai" else "alloy",
                 )
                 response = response.read()
                 st.audio(response)
@@ -759,13 +915,22 @@ def embedding_category(embedding_model: "Model", aibrary: "AiBrary"):
 
     st.session_state.setdefault("rag_data", {})
     st.session_state.setdefault("rag_message_data", [])
-    title_with_clearBtn("🌎 RAG", ["rag_data", "rag_message_data"])
+    st.session_state.setdefault("rag_file_uploader_key", 0)
+    title_with_clearBtn(
+        "🌎 RAG",
+        [
+            "rag_data",
+            "rag_message_data",
+        ],
+    )
     for message in st.session_state.rag_message_data:
         with st.chat_message(message["role"]):
             st.code(message["content"], language="md", wrap_lines=True)
 
     # Dropdowns for source and destination languages
-    uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+    uploaded_file = st.file_uploader(
+        "Upload a PDF file", type=["pdf"], key=st.session_state["rag_file_uploader_key"]
+    )
     question = st.chat_input("Ask a Question")
     with st.sidebar:
         models, model_name = render_model_option(aibrary, "chat")
@@ -779,11 +944,15 @@ def embedding_category(embedding_model: "Model", aibrary: "AiBrary"):
         embeddings=st.session_state.rag_data,
     )
 
-    if not question or not uploaded_file:
+    if not uploaded_file and not rag.embeddings:
+        print(uploaded_file)
+        print(rag.embeddings)
+        print("over here")
         st.warning("Please provide both a question and upload a PDF file.")
     else:
-        if not rag.embeddings:
-            # st.warning("Please upload a PDF file and create embeddings first.")
+        print("here")
+        if uploaded_file:
+            st.session_state.rag_data.clear()
             with open(uploaded_file.name, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
@@ -791,7 +960,8 @@ def embedding_category(embedding_model: "Model", aibrary: "AiBrary"):
             rag.create_embeddings(pages)
             st.success("PDF processed and embeddings created!")
             st.info("Processing PDF...")
-        if rag.embeddings:
+            st.session_state["rag_file_uploader_key"] += 1
+        if question and rag.embeddings:
             try:
                 with st.chat_message("user"):
                     st.code(question, language="md", wrap_lines=True)
