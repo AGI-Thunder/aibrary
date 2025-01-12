@@ -103,7 +103,6 @@ def draw_box_object_detection(image_bytes, detection_response):
             or item.x_max is None
             or item.y_max is None
         ):
-            print(f"Skipping item with None values: {item}")
             continue
 
         try:
@@ -129,22 +128,14 @@ def draw_box_object_detection(image_bytes, detection_response):
                 else int(item.y_max)
             )
         except ValueError:
-            print(f"Skipping item with invalid coordinates: {item}")
             continue
-
-        # Debugging: Print the bounding box values
-        print(
-            f"Bounding box: x_min={x_min}, y_min={y_min}, x_max={x_max}, y_max={y_max}, label={item.label}"
-        )
 
         # Ensure valid coordinates
         if x_min < 0 or y_min < 0 or x_max > img_width or y_max > img_height:
-            print("Skipping invalid bounding box.")
             continue
 
         # Ensure x_max >= x_min and y_max >= y_min
         if x_max < x_min or y_max < y_min:
-            print("Skipping inverted bounding box.")
             continue
 
         # Draw rectangle and add text
@@ -945,12 +936,8 @@ def embedding_category(embedding_model: "Model", aibrary: "AiBrary"):
     )
 
     if not uploaded_file and not rag.embeddings:
-        print(uploaded_file)
-        print(rag.embeddings)
-        print("over here")
         st.warning("Please provide both a question and upload a PDF file.")
     else:
-        print("here")
         if uploaded_file:
             st.session_state.rag_data.clear()
             with open(uploaded_file.name, "wb") as f:
