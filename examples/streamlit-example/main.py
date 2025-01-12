@@ -1,6 +1,77 @@
-from typing import Tuple
+from typing import Dict, List, Tuple
+
+from PyPDF2 import PdfReader
 
 from aibrary import AiBrary, Model
+
+
+class SimpleRAGSystem:
+    def __init__(
+        self,
+        aibrary: AiBrary,
+        embeddings: dict = {},
+        model_name="gpt-4",
+        embedding_model="text-embedding-3-small",
+    ):
+        self.aibrary = aibrary
+        self.model_name = model_name
+        self.embedding_model = embedding_model
+        self.embeddings = embeddings
+
+    def load_pdf(self, pdf_path: str) -> List[str]:
+        """Loads and extracts text from a PDF file."""
+        reader = PdfReader(pdf_path)
+        pages = [page.extract_text() for page in reader.pages]
+        return pages
+
+    def create_embeddings(self, texts: List[str]):
+        """Generates embeddings for a list of texts and stores them."""
+        for i, text in enumerate(texts):
+            response = self.aibrary.embeddings.create(
+                model=self.embedding_model,
+                input=text,
+                encoding_format="float",
+            )
+            self.embeddings[i] = {"embedding": response.data[0].embedding, "text": text}
+
+    def find_relevant_chunks(self, question: str, top_k=3) -> List[Dict]:
+        """Finds the top-k most relevant chunks for a given question."""
+        question_embedding = (
+            self.aibrary.embeddings.create(
+                model=self.embedding_model,
+                input=question,
+                encoding_format="float",
+            )
+            .data[0]
+            .embedding
+        )
+
+        scores = {
+            idx: self.cosine_similarity(question_embedding, chunk["embedding"])
+            for idx, chunk in self.embeddings.items()
+        }
+        sorted_chunks = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return [
+            {"text": self.embeddings[idx]["text"], "score": score}
+            for idx, score in sorted_chunks[:top_k]
+        ]
+
+    def cosine_similarity(self, vec1, vec2) -> float:
+        """Calculates the cosine similarity between two vectors."""
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        norm1 = sum(a**2 for a in vec1) ** 0.5
+        norm2 = sum(b**2 for b in vec2) ** 0.5
+        return dot_product / (norm1 * norm2)
+
+    def ask_question(self, question: str) -> str:
+        """Answers a question based on the most relevant chunks."""
+        relevant_chunks = self.find_relevant_chunks(question)
+        context = "\n".join(chunk["text"] for chunk in relevant_chunks)
+        prompt = f"Use the following context to answer the question:\n\n{context}\n\nQuestion: {question}\nAnswer:"
+        response = self.aibrary.chat.completions.create(
+            model=self.model_name, messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
 
 
 def intro():
@@ -61,7 +132,6 @@ def generate_markdown_for_models(model) -> str:
 
 
 def sidebar() -> Tuple["Model", "AiBrary"]:
-    from collections import defaultdict
 
     import streamlit as st
 
@@ -85,50 +155,60 @@ def sidebar() -> Tuple["Model", "AiBrary"]:
             category_name = st.selectbox("Choose a category", categories)
             if category_name == "intro":
                 return None, None
-            models = {
-                f"{item.model_name}"
-                + (f"-{item.size}" if item.size is not None else "")
-                + (f",{item.quality}" if item.quality is not None else ""): item
-                for item in aibrary.get_all_models(filter_category=category_name)
-            }
-            if category_name == "chat":
-                models.update(
-                    {
-                        f"{item.model_name}"
-                        + (f"-{item.size}" if item.size is not None else "")
-                        + (f",{item.quality}" if item.quality is not None else ""): item
-                        for item in aibrary.get_all_models(filter_category="multimodal")
-                    }
-                )
-            grouped = defaultdict(list)
-
-            # Group data by the specified field
-            for name, obj in models.items():
-                grouped[obj.provider].append(name)
-
-            def create_options_with_separator(grouped_dict, separator="🤖"):
-                options = []
-                for group, items in grouped_dict.items():
-                    # Add separator for the group with its name
-                    options.append(f"{separator}{group}")
-                    # Add items from the group
-                    options.extend(items)
-                if options and options[-1] == separator:
-                    options.pop()  # Remove the last separator if it exists
-                return options
-
-            # Create options with separator
-            options = create_options_with_separator(grouped)
-
-            # Display the dropdown
-            model_name = st.selectbox("Select an option", options, index=1)
-
-            # Handle selection
-            if model_name.startswith("🤖"):
-                st.warning("This is just a provider, please select a model.")
+            models, model_name = render_model_option(aibrary, category_name)
 
             return models[model_name], aibrary
     return None, None
+
+
+def render_model_option(aibrary: AiBrary, category_name: str):
+    from collections import defaultdict
+
+    import streamlit as st
+
+    models = {
+        f"{item.model_name}"
+        + (f"-{item.size}" if item.size is not None else "")
+        + (f",{item.quality}" if item.quality is not None else ""): item
+        for item in aibrary.get_all_models(filter_category=category_name)
+    }
+    if category_name == "chat":
+        models.update(
+            {
+                f"{item.model_name}"
+                + (f"-{item.size}" if item.size is not None else "")
+                + (f",{item.quality}" if item.quality is not None else ""): item
+                for item in aibrary.get_all_models(filter_category="multimodal")
+            }
+        )
+    grouped = defaultdict(list)
+
+    # Group data by the specified field
+    for name, obj in models.items():
+        grouped[obj.provider].append(name)
+
+    def create_options_with_separator(grouped_dict, separator="🤖"):
+        options = []
+        for group, items in grouped_dict.items():
+            # Add separator for the group with its name
+            options.append(f"{separator}{group}")
+            # Add items from the group
+            options.extend(items)
+        if options and options[-1] == separator:
+            options.pop()  # Remove the last separator if it exists
+        return options
+
+        # Create options with separator
+
+    options = create_options_with_separator(grouped)
+
+    # Display the dropdown
+    model_name = st.selectbox("Select an option", options, index=1)
+
+    # Handle selection
+    if model_name.startswith("🤖"):
+        st.warning("This is just a provider, please select a model.")
+    return models, model_name
 
 
 def chat_category(model: "Model", aibrary: "AiBrary"):
@@ -303,8 +383,9 @@ def multimodal_category(model: "Model", aibrary: "AiBrary"):
 def image_category(model: "Model", aibrary: "AiBrary"):
 
     import streamlit as st
-    from openai.types.images_response import ImagesResponse
     from utils.file_convertor import decode_file
+
+    from aibrary.types.images_response import ImagesResponse
 
     st.title()
     st.session_state.setdefault("image_data", [])
@@ -557,7 +638,7 @@ def tts_category(model: "Model", aibrary: "AiBrary"):
                     input=prompt,
                     model=model.model_name,
                     response_format="mp3",
-                    voice="FEMALE" if model.provider != "openai" else "alloy",
+                    voice="FEMALE" if model.provider != "aibrary" else "alloy",
                 )
                 response = response.read()
                 st.audio(response)
@@ -672,6 +753,65 @@ def translation_category(model: "Model", aibrary: "AiBrary"):
                 st.error(f"Error: {e}")
 
 
+def embedding_category(embedding_model: "Model", aibrary: "AiBrary"):
+
+    import streamlit as st
+
+    st.session_state.setdefault("rag_data", {})
+    st.session_state.setdefault("rag_message_data", [])
+    title_with_clearBtn("🌎 RAG", ["rag_data", "rag_message_data"])
+    for message in st.session_state.rag_message_data:
+        with st.chat_message(message["role"]):
+            st.code(message["content"], language="md", wrap_lines=True)
+
+    # Dropdowns for source and destination languages
+    uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+    question = st.chat_input("Ask a Question")
+    with st.sidebar:
+        models, model_name = render_model_option(aibrary, "chat")
+        st.success(model_name)
+        st.success(embedding_model.model_name)
+    chat_model = models[model_name]
+    rag = SimpleRAGSystem(
+        aibrary=aibrary,
+        model_name=f"{chat_model.model_name}@{chat_model.provider}",
+        embedding_model=f"{embedding_model.model_name}@{embedding_model.provider}",
+        embeddings=st.session_state.rag_data,
+    )
+
+    if not question or not uploaded_file:
+        st.warning("Please provide both a question and upload a PDF file.")
+    else:
+        if not rag.embeddings:
+            # st.warning("Please upload a PDF file and create embeddings first.")
+            with open(uploaded_file.name, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+            pages = rag.load_pdf(uploaded_file.name)
+            rag.create_embeddings(pages)
+            st.success("PDF processed and embeddings created!")
+            st.info("Processing PDF...")
+        if rag.embeddings:
+            try:
+                with st.chat_message("user"):
+                    st.code(question, language="md", wrap_lines=True)
+
+                with st.spinner("Finding the answer..."):
+                    answer = rag.ask_question(question)
+
+                with st.chat_message("assistant"):
+                    st.code(answer, language="md", wrap_lines=True)
+
+                st.session_state.rag_message_data.append(
+                    {"role": "user", "content": question}
+                )
+                st.session_state.rag_message_data.append(
+                    {"role": "assistant", "content": answer}
+                )
+            except Exception as e:
+                st.error(f"An error occurred while processing the PDF: {e}")
+
+
 def page_router(demo_name: str, model: "Model", aibrary: "AiBrary"):
     import streamlit as st
 
@@ -693,6 +833,8 @@ def page_router(demo_name: str, model: "Model", aibrary: "AiBrary"):
         tts_category(model, aibrary)
     elif demo_name == "translation":
         translation_category(model, aibrary)
+    elif demo_name == "embedding":
+        embedding_category(model, aibrary)
     else:
         st.markdown("## 🚧 This category is under development.")
         st.markdown("## 🚧 We are working on it...")
