@@ -1,7 +1,8 @@
 from typing import Tuple
 
+import streamlit as st
 from categories.chat import chat_category
-from categories.embedding import embedding_category
+from categories.embedding import rag_category
 from categories.image import image_category
 from categories.multimodal import multimodal_category
 from categories.object_detection import object_detection_category
@@ -35,13 +36,13 @@ def intro():
     def update_api_key(new_value):
         st.session_state["api_key"] = new_value
 
-    st.title("🔑 API Key Manager")
-    st.subheader("Securely manage your API key")
+    st.title("🔑 Enter your API Key")
 
     main_api_key = st.text_input(
-        "Enter your API Key",
+        "",
         value=st.session_state["api_key"],
         on_change=lambda: update_api_key(st.session_state["api_key"]),
+        type="password",
     )
 
     if main_api_key != st.session_state["api_key"]:
@@ -63,6 +64,7 @@ def sidebar() -> Tuple["Model", "AiBrary"]:
             type="password",
         ):
             st.session_state["api_key"] = aibrary_api_key
+            st.session_state["base_url"] = "http://127.0.0.1:8000/v0/"
 
             aibrary = AiBrary(api_key=aibrary_api_key) if aibrary_api_key else AiBrary()
             categories = sorted(
@@ -70,7 +72,11 @@ def sidebar() -> Tuple["Model", "AiBrary"]:
             )
 
             categories.insert(0, "chat")
-            category_name = st.selectbox("Choose a category", categories)
+            category_name = st.selectbox(
+                "Choose a category",
+                categories,
+                format_func=lambda x: {"embedding": "rag"}.get(x, x),
+            )
             if category_name == "intro":
                 return None, None
             models, model_name = render_model_option(aibrary, category_name)
@@ -80,7 +86,6 @@ def sidebar() -> Tuple["Model", "AiBrary"]:
 
 
 def page_router(demo_name: str, model: "Model", aibrary: "AiBrary"):
-    import streamlit as st
 
     if demo_name == "intro":
         intro()
@@ -101,12 +106,19 @@ def page_router(demo_name: str, model: "Model", aibrary: "AiBrary"):
     elif demo_name == "translation":
         translation_category(model, aibrary)
     elif demo_name == "embedding":
-        embedding_category(model, aibrary)
+        rag_category(model, aibrary)
     else:
         st.markdown("## 🚧 This category is under development.")
         st.markdown("## 🚧 We are working on it...")
 
 
+st.set_page_config(
+    page_title="AiBrary",
+    page_icon="https://www.aibrary.dev/_next/static/media/logo.26501b30.svg",
+    layout="centered",
+    initial_sidebar_state="auto",
+    menu_items=None,
+)
 try:
     model, aibrary = sidebar()
     generate_markdown_for_models(model)
