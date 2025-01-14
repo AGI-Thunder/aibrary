@@ -7,6 +7,8 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
 from langchain_openai.embeddings import OpenAIEmbeddings
+from utils.chat_hyper_param import chat_hyper_param
+from utils.model_info_generator import generate_markdown_for_models
 
 from aibrary import AiBrary, Model
 
@@ -25,39 +27,20 @@ def rag_category(embedding_model: "Model", aibrary: "AiBrary"):
     st.session_state.setdefault("rag_data", {})
     st.session_state.setdefault("rag_message_data", [])
     st.session_state.setdefault("rag_file_uploader_key", 0)
+    with st.sidebar:
+        models, model_name = render_model_option(
+            aibrary, "chat", selectbox_title="Select a llm model"
+        )
+    chat_model = models[model_name]
+    with st.sidebar:
+        chat_hyper_param()
+    generate_markdown_for_models(chat_model)
     title_with_clearBtn(
         "🦉 RAG",
         [
             "rag_message_data",
         ],
     )
-    if st.button("Remove Knowledge Base"):
-        st.session_state.vectorstore = None
-        st.session_state.file_hash = None
-        st.success("Knowledge base removed.")
-        st.rerun()  # This effectively removes the current state
-    for message in st.session_state.rag_message_data:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    with st.sidebar:
-        models, model_name = render_model_option(
-            aibrary, "chat", selectbox_title="Select an embedding model"
-        )
-        st.success(embedding_model.model_name)
-        st.success(model_name)
-    chat_model = models[model_name]
-
-    # Initialize session state for vectorstore and file hash
-    if "vectorstore" not in st.session_state:
-        st.session_state.vectorstore = None
-    if "file_hash" not in st.session_state:
-        st.session_state.file_hash = None
-
-    # os.environ["OPENAI_API_KEY"] = st.session_state["api_key"]
-    # os.environ["OPENAI_BASE_URL"] = st.session_state["base_url"]
-
-    # File upload for the knowledge base
     uploaded_file = st.file_uploader(
         "Upload a text file for knowledge base:",
         key=st.session_state.rag_file_uploader_key,
@@ -81,8 +64,27 @@ def rag_category(embedding_model: "Model", aibrary: "AiBrary"):
             "json",
             "xml",
             "zip",
+            "md",
         ],
     )
+    if st.button("Remove Knowledge Base"):
+        st.session_state.vectorstore = None
+        st.session_state.file_hash = None
+        st.success("Knowledge base removed.")
+        st.rerun()  # This effectively removes the current state
+
+    for message in st.session_state.rag_message_data:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    # Initialize session state for vectorstore and file hash
+    if "vectorstore" not in st.session_state:
+        st.session_state.vectorstore = None
+    if "file_hash" not in st.session_state:
+        st.session_state.file_hash = None
+
+    # base_url = str(aibrary._client.base_url)
+    base_url = str(aibrary._client.base_url)
+    # File upload for the knowledge base
 
     if uploaded_file or st.session_state.vectorstore is not None:
         try:
@@ -124,7 +126,7 @@ def rag_category(embedding_model: "Model", aibrary: "AiBrary"):
                     # Generate embeddings and create a FAISS vector store
                     embeddings = OpenAIEmbeddings(
                         api_key=st.session_state["api_key"],
-                        base_url=str(aibrary._client.base_url),
+                        base_url=base_url,
                         model=embedding_model.model_name,
                         model_kwargs={
                             "encoding_format": "float",
@@ -144,9 +146,13 @@ def rag_category(embedding_model: "Model", aibrary: "AiBrary"):
             if st.session_state.vectorstore:
                 llm = ChatOpenAI(
                     api_key=st.session_state["api_key"],
-                    base_url=str(aibrary._client.base_url),
+                    base_url=base_url,
                     model=f"{chat_model.model_name}@{chat_model.provider}",
-                    temperature=0.7,
+                    **(
+                        st.session_state.params
+                        if st.session_state.get("use_hyper_param", False)
+                        else {}
+                    ),
                 )
 
                 # Define the RetrievalQA chain with the custom prompt

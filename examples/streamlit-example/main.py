@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 import streamlit as st
@@ -11,7 +12,7 @@ from categories.stt import stt_category
 from categories.translation import translation_category
 from categories.tts import tts_category
 from utils.model_info_generator import generate_markdown_for_models
-from utils.render_model_option import render_model_option
+from utils.render_model_option import get_all_models_cached, render_model_option
 
 from aibrary import AiBrary, Model
 
@@ -31,23 +32,32 @@ def intro():
     )
 
     if "api_key" not in st.session_state:
-        st.session_state["api_key"] = ""
+        st.session_state["api_key"] = os.environ.get("AIBRARY_API_KEY", "")
 
     def update_api_key(new_value):
         st.session_state["api_key"] = new_value
+        st.rerun()
 
-    st.title("🔑 Enter your API Key")
-
-    main_api_key = st.text_input(
-        "",
-        value=st.session_state["api_key"],
-        on_change=lambda: update_api_key(st.session_state["api_key"]),
-        type="password",
+    col1, col2 = st.columns(
+        spec=[0.7, 0.2],
+        vertical_alignment="bottom",
+        gap="small",
     )
 
-    if main_api_key != st.session_state["api_key"]:
-        update_api_key(main_api_key)
-        st.rerun()
+    with col1:
+        main_api_key = st.text_input(
+            "🔑 Enter your API Key",
+            value=st.session_state["api_key"],
+            on_change=lambda: update_api_key(st.session_state["api_key"]),
+            type="password",
+        )
+    with col2:
+        if st.button(
+            "Enter",
+            icon="🚪",
+        ):
+            if main_api_key != st.session_state["api_key"]:
+                update_api_key(main_api_key)
 
 
 def sidebar() -> Tuple["Model", "AiBrary"]:
@@ -57,25 +67,29 @@ def sidebar() -> Tuple["Model", "AiBrary"]:
     from aibrary import AiBrary
 
     with st.sidebar:
-        if aibrary_api_key := st.text_input(
-            "AiBrary API Key",
-            key="aibrary_api_key",
-            value=st.session_state["api_key"],
-            type="password",
+        if (
+            aibrary_api_key := st.text_input(
+                "AiBrary API Key",
+                key="aibrary_api_key",
+                value=st.session_state["api_key"],
+                type="password",
+            )
+            or os.environ.get("AIBRARY_API_KEY") is not None
         ):
+            if not aibrary_api_key:
+                aibrary_api_key = os.environ.get("AIBRARY_API_KEY")
+                st.rerun()
             st.session_state["api_key"] = aibrary_api_key
-            st.session_state["base_url"] = "http://127.0.0.1:8000/v0/"
 
-            aibrary = AiBrary(api_key=aibrary_api_key) if aibrary_api_key else AiBrary()
             categories = sorted(
-                {item.category for item in aibrary.get_all_models()} - {"chat"}
+                {item.category for item in get_all_models_cached(aibrary)} - {"chat"}
             )
 
             categories.insert(0, "chat")
             category_name = st.selectbox(
                 "Choose a category",
                 categories,
-                format_func=lambda x: {"embedding": "rag"}.get(x, x),
+                format_func=lambda x: {"embedding": "rag"}.get(x, x).title(),
             )
             if category_name == "intro":
                 return None, None
@@ -114,7 +128,7 @@ def page_router(demo_name: str, model: "Model", aibrary: "AiBrary"):
 
 st.set_page_config(
     page_title="AiBrary",
-    page_icon="https://www.aibrary.dev/_next/static/media/logo.26501b30.svg",
+    page_icon="https://3389077816-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/organizations%2F2FbkTed5GwFvxgjieEqg%2Fsites%2Fsite_BrVCS%2Ficon%2FT6IoEo4vpVFwZq7zZU5N%2FAiBrary%20-%20Icon%20-%20PRM.svg?alt=media&token=08764038-7540-4388-b061-fe4f19b6636e",
     layout="centered",
     initial_sidebar_state="auto",
     menu_items=None,

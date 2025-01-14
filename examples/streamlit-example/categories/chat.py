@@ -1,3 +1,5 @@
+from utils.chat_hyper_param import chat_hyper_param
+
 from aibrary import AiBrary, Model
 
 
@@ -7,7 +9,8 @@ def chat_category(model: "Model", aibrary: "AiBrary"):
 
     st.session_state.setdefault("messages_data", [])
     title_with_clearBtn("🧠 Chat", ["messages_data"])
-
+    with st.sidebar:
+        chat_hyper_param()
     for message in st.session_state.messages_data:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -24,6 +27,11 @@ def chat_category(model: "Model", aibrary: "AiBrary"):
                     model=f"{model.model_name}@{model.provider}",
                     messages=st.session_state.messages_data,
                     stream=True,
+                    **(
+                        st.session_state.params
+                        if st.session_state.get("use_hyper_param", False)
+                        else {}
+                    ),
                 )
                 response = st.write_stream(response)
                 st.session_state.messages_data.append(
