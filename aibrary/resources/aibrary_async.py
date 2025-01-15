@@ -4,6 +4,7 @@ from typing import List, Optional
 import httpx
 import openai
 
+import aibrary as aib
 from aibrary.resources.models import Model
 from aibrary.resources.object_detection import ObjectDetectionClient
 from aibrary.resources.ocr import OCRClient
@@ -27,8 +28,9 @@ class AsyncAiBrary(openai.AsyncOpenAI):
                 "The api_key client option must be set either by passing api_key to the client or by setting the AIBRARY_API_KEY environment variable"
             )
         self.api_key = api_key
-        self.base_url = f"https://api.aibrary.dev/v0"
         openai.api_key = api_key
+
+        self.base_url = aib.base_url
         openai.base_url = self.base_url
         super().__init__(api_key=self.api_key, base_url=self.base_url, **kwargs)
 
