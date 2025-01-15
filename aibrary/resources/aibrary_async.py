@@ -27,8 +27,12 @@ class AsyncAiBrary(openai.AsyncOpenAI):
                 "The api_key client option must be set either by passing api_key to the client or by setting the AIBRARY_API_KEY environment variable"
             )
         self.api_key = api_key
-        self.base_url = f"https://api.aibrary.dev/v0"
         openai.api_key = api_key
+
+        if os.environ.get("AIBRARY_BASE_URL"):
+            self.base_url = os.environ.get("AIBRARY_BASE_URL")
+        else:
+            self.base_url = f"https://api.aibrary.dev/v0"
         openai.base_url = self.base_url
         super().__init__(api_key=self.api_key, base_url=self.base_url, **kwargs)
 
