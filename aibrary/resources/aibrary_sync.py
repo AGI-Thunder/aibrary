@@ -29,10 +29,7 @@ class AiBrary(openai.OpenAI):
         self.api_key = api_key
         openai.api_key = api_key
 
-        if os.environ.get("AIBRARY_BASE_URL"):
-            self.base_url = os.environ.get("AIBRARY_BASE_URL")
-        else:
-            self.base_url = f"https://api.aibrary.dev/v0"
+        self.base_url = os.environ.get("AIBRARY_BASE_URL", "https://api.aibrary.dev/v0")
         openai.base_url = self.base_url
         super().__init__(api_key=self.api_key, base_url=self.base_url, **kwargs)
 
