@@ -17,5 +17,5 @@ def getenv_bool(name: str, default: bool = False) -> bool:
 base_url = (
     "http://127.0.0.1:8000/v0"
     if getenv_bool("DEV_AIBRARY", False)
-    else "www.api.aibrary.dev/v0"
+    else "https://api.aibrary.dev/v0"
 )
