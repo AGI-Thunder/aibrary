@@ -9,5 +9,8 @@ from aibrary.resources.models import Model
 
 __all__ = ["AiBrary", "AsyncAiBrary", "Model"]
 
-if os.environ.get("DEV_AIBRARY", None):
-    os.environ["AIBRARY_BASE_URL"] = "http://127.0.0.1:8000/v0"
+base_url = (
+    "www.api.aibrary.dev/v0"
+    if os.environ.get("DEV_AIBRARY", None)
+    else "http://127.0.0.1:8000/v0"
+)

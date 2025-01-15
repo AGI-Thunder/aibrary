@@ -4,6 +4,7 @@ from typing import List, Optional
 import httpx
 import openai
 
+import aibrary as aib
 from aibrary.resources.models import Model
 from aibrary.resources.object_detection import ObjectDetectionClient
 from aibrary.resources.ocr import OCRClient
@@ -29,7 +30,7 @@ class AiBrary(openai.OpenAI):
         self.api_key = api_key
         openai.api_key = api_key
 
-        self.base_url = os.environ.get("AIBRARY_BASE_URL", "https://api.aibrary.dev/v0")
+        self.base_url = aib.base_url
         openai.base_url = self.base_url
         super().__init__(api_key=self.api_key, base_url=self.base_url, **kwargs)
 
