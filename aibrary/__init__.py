@@ -9,8 +9,13 @@ from aibrary.resources.models import Model
 
 __all__ = ["AiBrary", "AsyncAiBrary", "Model"]
 
+
+def getenv_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).lower() in ("yes", "y", "true", "1", "t")
+
+
 base_url = (
-    "www.api.aibrary.dev/v0"
-    if os.environ.get("DEV_AIBRARY", None)
-    else "http://127.0.0.1:8000/v0"
+    "http://127.0.0.1:8000/v0"
+    if getenv_bool("DEV_AIBRARY", False)
+    else "www.api.aibrary.dev/v0"
 )
