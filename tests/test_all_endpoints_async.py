@@ -7,6 +7,9 @@ from aibrary import AsyncAiBrary
 from aibrary.resources.models import Model
 from tests.conftest import get_min_model_by_size
 
+# Const
+MAX_RETRIES = 5
+
 
 @pytest.fixture
 def aibrary():
@@ -22,13 +25,27 @@ def event_loop():
 @pytest.mark.asyncio
 async def test_chat_completions(aibrary: AsyncAiBrary):
     async def new_func(aibrary: AsyncAiBrary, model: Model, index: int):
-        await asyncio.sleep(index * 1.5)
-        return await aibrary.chat.completions.create(
-            model=f"{model.model_name}@{model.provider}",
-            messages=[
-                {"role": "user", "content": "what is 2+2? return only a number."},
-            ],
-        )
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await aibrary.chat.completions.create(
+                    model=f"{model.model_name}@{model.provider}",
+                    max_completion_tokens=50,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "Hi!",
+                        },
+                    ],
+                )
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(attempt * 3)
+                    print("Failed:", attempt)
+                    continue  # Retry
+                else:
+                    raise last_exception
 
     models = await aibrary.get_all_models(filter_category="chat")
     assert len(models) > 0, "There is no model!!!"
@@ -72,16 +89,22 @@ async def test_chat_completions_with_system(aibrary: AsyncAiBrary):
 @pytest.mark.asyncio
 async def test_audio_transcriptions(aibrary: AsyncAiBrary):
     async def _inner_fun(model: Model):
-        try:
-            with open("tests/assets/file.mp3", "rb") as audio_file:
-                return (
-                    await aibrary.audio.transcriptions.create(
-                        model=model.model_name, file=audio_file
-                    ),
-                    model,
-                )
-        except Exception as e:
-            return (e, model)
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                with open("tests/assets/file.mp3", "rb") as audio_file:
+                    return (
+                        await aibrary.audio.transcriptions.create(
+                            model=model.model_name, file=audio_file
+                        ),
+                        model,
+                    )
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    continue  # Retry
+                else:
+                    return (last_exception, model)
 
     models = await aibrary.get_all_models(filter_category="stt")
     assert len(models) > 0, "There is no model!!!"
@@ -104,19 +127,25 @@ async def test_audio_transcriptions(aibrary: AsyncAiBrary):
 @pytest.mark.asyncio
 async def test_automatic_translation(aibrary: AsyncAiBrary):
     async def _inner_fun(model: Model):
-        await asyncio.sleep(2)
-        try:
-            return (
-                await aibrary.translation(
-                    text="HI",
-                    model=model.model_name,
-                    source_language="en",
-                    target_language="ar",
-                ),
-                model,
-            )
-        except Exception as e:
-            return (e, model)
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                await asyncio.sleep(2)
+                return (
+                    await aibrary.translation(
+                        text="HI",
+                        model=model.model_name,
+                        source_language="en",
+                        target_language="ar",
+                    ),
+                    model,
+                )
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    continue  # Retry
+                else:
+                    return (last_exception, model)
 
     models = await aibrary.get_all_models(filter_category="translation")
     assert len(models) > 0, "There is no model!!!"
@@ -137,18 +166,24 @@ async def test_automatic_translation(aibrary: AsyncAiBrary):
 @pytest.mark.asyncio
 async def test_audio_speech_creation(aibrary: AsyncAiBrary):
     async def _inner_fun(model: Model):
-        await asyncio.sleep(3)
-        try:
-            return (
-                await aibrary.audio.speech.create(
-                    input="Hey Cena",
-                    model=model.model_name,
-                    response_format="mp3",
-                    voice="FEMALE" if model.provider != "openai" else "alloy",
-                )
-            ), model
-        except Exception as e:
-            return (e, model)
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                await asyncio.sleep(3)
+                return (
+                    await aibrary.audio.speech.create(
+                        input="Hey Cena",
+                        model=model.model_name,
+                        response_format="mp3",
+                        voice="FEMALE" if model.provider != "openai" else "alloy",
+                    )
+                ), model
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    continue  # Retry
+                else:
+                    return (last_exception, model)
 
     models = await aibrary.get_all_models(filter_category="tts")
     assert len(models) > 0, "There is no model!!!"
@@ -169,17 +204,23 @@ async def test_audio_speech_creation(aibrary: AsyncAiBrary):
 @pytest.mark.asyncio
 async def test_image_generation_with_multiple_models(aibrary: AsyncAiBrary):
     async def _inner_fun(model: Model):
-        try:
-            return (
-                await aibrary.images.generate(
-                    model=model.model_name,
-                    size=model.size,
-                    prompt="Draw a futuristic cityscape",
-                    response_format="b64_json",
-                )
-            ), model
-        except Exception as e:
-            return (e, model)
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                return (
+                    await aibrary.images.generate(
+                        model=model.model_name,
+                        size=model.size,
+                        prompt="Draw a futuristic cityscape",
+                        response_format="b64_json",
+                    )
+                ), model
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    continue  # Retry
+                else:
+                    return (last_exception, model)
 
     models = await aibrary.get_all_models(filter_category="image")
     models = get_min_model_by_size(models)
@@ -205,22 +246,29 @@ async def generic_with_multiple_modes(
     include_language: bool = True,
 ):
     async def _inner_fun(model: Model, mode: str, input_data: str):
-        await asyncio.sleep(1)
-        try:
-            kwargs = {
-                "providers": model.model_name,
-                "file": input_data if mode == "file" else None,
-                "file_url": input_data if mode == "url" else None,
-            }
-            if include_language:
-                kwargs["language"] = "en"
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                await asyncio.sleep(1)
+                kwargs = {
+                    "providers": model.model_name,
+                    "file": input_data if mode == "file" else None,
+                    "file_url": input_data if mode == "url" else None,
+                }
+                if include_language:
+                    kwargs["language"] = "en"
 
-            response = await getattr(aibrary, method)(
-                **{k: v for k, v in kwargs.items() if v is not None}
-            )
-            return response, mode, input_data, model
-        except Exception as e:
-            return e, mode, input_data, model
+                response = await getattr(aibrary, method)(
+                    **{k: v for k, v in kwargs.items() if v is not None}
+                )
+                return response, mode, input_data, model
+
+            except Exception as e:
+                last_exception = e
+                if attempt < MAX_RETRIES - 1:
+                    continue  # Retry
+                else:
+                    return last_exception, mode, input_data, model
 
     # Test data
     file_path = "tests/assets/test-image.jpg"  # Replace with an actual test file path
